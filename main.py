@@ -43,12 +43,11 @@ class CelikkubbeApp(QMainWindow):
         scrollbar.setValue(scrollbar.maximum())
 
     def led_guncelle(self, led_objesi, durum):
-        # Base LED stili
-        base_style = "border-radius: 10px; min-width: 20px; min-height: 20px; max-width: 20px; max-height: 20px;"
-        if durum:
-            led_objesi.setStyleSheet(f"background-color: #FFB300; {base_style}")
-        else:
-            led_objesi.setStyleSheet(f"background-color: #FF0000; {base_style}")
+        # QSS'in değişiklikleri algılaması için property ayarlayıp widget'ı güncelliyoruz
+        durum_metni = "aktif" if durum else "pasif"
+        led_objesi.setProperty("ledDurum", durum_metni)
+        led_objesi.style().unpolish(led_objesi)
+        led_objesi.style().polish(led_objesi)
 
     @Slot()
     def toggle_yasakli_alan(self):
@@ -62,10 +61,13 @@ class CelikkubbeApp(QMainWindow):
         self.sistem_kilitli = False
         self.ui.btnAtes.setEnabled(True)
         self.ui.btnAcilDurdur.setEnabled(True)
-        # Kamera feed durum sıfırlama (Ana renkleri QSS'den ezmemek için sadece metni güncelliyoruz)
-        self.ui.lblKameraFeed.setStyleSheet(
-            "border: 1px solid #805A00; background-color: #030200; color: #FFB300; font-size: 24px;")
+
+        # Kamera feed durumu QSS ile yönetilecek
+        self.ui.lblKameraFeed.setProperty("kameraDurum", "hazir")
+        self.ui.lblKameraFeed.style().unpolish(self.ui.lblKameraFeed)
+        self.ui.lblKameraFeed.style().polish(self.ui.lblKameraFeed)
         self.ui.lblKameraFeed.setText("KAMERA AKIŞI AKTİF\nSİSTEM HAZIR")
+
         self.led_guncelle(self.ui.lblLedKamera, True)
         self.log_yaz("[SYSTEM] Sistem başlatıldı. Donanım kontrolleri tamam.")
         self.mod_degistir(0)
@@ -78,10 +80,12 @@ class CelikkubbeApp(QMainWindow):
         self.led_guncelle(self.ui.lblLedFan, False)
         self.led_guncelle(self.ui.lblLedTakip, False)
 
+        # E-Stop durumu QSS ile yönetilecek
+        self.ui.lblKameraFeed.setProperty("kameraDurum", "estop")
+        self.ui.lblKameraFeed.style().unpolish(self.ui.lblKameraFeed)
+        self.ui.lblKameraFeed.style().polish(self.ui.lblKameraFeed)
         self.ui.lblKameraFeed.setText("!!! E-STOP !!!\nSİSTEM KİLİTLİ")
-        # E-Stop kırmızı uyarısı (QSS'i dinamik olarak eziyor)
-        self.ui.lblKameraFeed.setStyleSheet(
-            "border: 5px solid #FF0000; background-color: #330000; color: #FF3333; font-size: 40px; font-weight: bold;")
+
         self.log_yaz("[CRITICAL] ACİL DURDURMA BUTONUNA BASILDI! TÜM SİLAH VE MOTOR GÜCÜ KESİLDİ.")
 
     @Slot()
@@ -141,7 +145,8 @@ class CelikkubbeApp(QMainWindow):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
-    qss_yolu = os.path.join(os.path.dirname(__file__), "style.qss")
+    # Dosya adını style.qss olarak düzelttik
+    qss_yolu = os.path.join(os.path.dirname(__file__), "style2.qss")
     if os.path.exists(qss_yolu):
         with open(qss_yolu, "r", encoding="utf-8") as f:
             app.setStyleSheet(f.read())

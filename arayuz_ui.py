@@ -18,6 +18,7 @@ class Ui_CelikkubbeUI(object):
 
         # ================= SOL/ANA PANEL =================
         self.panelAna = QFrame(self.centralwidget)
+        self.panelAna.setObjectName("panelAna")
         self.layoutAna = QVBoxLayout(self.panelAna)
 
         self.lblCalismaModu = QLabel("Çalışma Modu: SERBEST")
@@ -31,6 +32,7 @@ class Ui_CelikkubbeUI(object):
         self.layoutAna.addWidget(self.lblKameraFeed, stretch=3)
 
         self.txtLogPanel = QTextEdit()
+        self.txtLogPanel.setObjectName("txtLogPanel")
         self.txtLogPanel.setReadOnly(True)
         self.txtLogPanel.setPlaceholderText("LOG PANELİ BAŞLATILIYOR...")
         self.layoutAna.addWidget(self.txtLogPanel, stretch=1)
@@ -39,9 +41,9 @@ class Ui_CelikkubbeUI(object):
 
         # ================= SAĞ PANEL =================
         self.panelSag = QFrame(self.centralwidget)
+        self.panelSag.setObjectName("panelSag")  # QSS tarafında yakalamak için ID verildi
         self.panelSag.setMinimumWidth(320)
         self.panelSag.setMaximumWidth(380)
-        self.panelSag.setStyleSheet(u"border-left: 2px solid #805A00; padding-left: 5px;")  # Panel ayırıcı çizgi
         self.layoutSag = QVBoxLayout(self.panelSag)
         self.layoutSag.setSpacing(8)
 
@@ -55,17 +57,22 @@ class Ui_CelikkubbeUI(object):
         self.layoutSag.addLayout(self.layoutSicaklik)
 
         self.gridLeds = QGridLayout()
-        self.lblLedLazer = QLabel();
-        self.lblLedKamera = QLabel();
-        self.lblLedFan = QLabel();
+        self.lblLedLazer = QLabel()
+        self.lblLedKamera = QLabel()
+        self.lblLedFan = QLabel()
         self.lblLedTakip = QLabel()
-        self.gridLeds.addWidget(QLabel("LAZER:"), 0, 0);
+
+        # Ledlere ortak sınıf ve başlangıç durumu verelim
+        for led in [self.lblLedLazer, self.lblLedKamera, self.lblLedFan, self.lblLedTakip]:
+            led.setProperty("ledDurum", "pasif")
+
+        self.gridLeds.addWidget(QLabel("LAZER:"), 0, 0)
         self.gridLeds.addWidget(self.lblLedLazer, 0, 1)
-        self.gridLeds.addWidget(QLabel("KAMERA:"), 0, 2);
+        self.gridLeds.addWidget(QLabel("KAMERA:"), 0, 2)
         self.gridLeds.addWidget(self.lblLedKamera, 0, 3)
-        self.gridLeds.addWidget(QLabel("FANLAR:"), 1, 0);
+        self.gridLeds.addWidget(QLabel("FANLAR:"), 1, 0)
         self.gridLeds.addWidget(self.lblLedFan, 1, 1)
-        self.gridLeds.addWidget(QLabel("TAKİP:"), 1, 2);
+        self.gridLeds.addWidget(QLabel("TAKİP:"), 1, 2)
         self.gridLeds.addWidget(self.lblLedTakip, 1, 3)
         self.layoutSag.addLayout(self.gridLeds)
 
@@ -79,9 +86,9 @@ class Ui_CelikkubbeUI(object):
         self.layoutMod.addWidget(self.radioOtomatik)
         self.layoutSag.addLayout(self.layoutMod)
 
-        cizgi1 = QFrame();
-        cizgi1.setFrameShape(QFrame.HLine);
-        cizgi1.setStyleSheet("color: #805A00;")
+        cizgi1 = QFrame()
+        cizgi1.setFrameShape(QFrame.HLine)
+        cizgi1.setObjectName("ayiriciCizgi")  # QSS için
         self.layoutSag.addWidget(cizgi1)
 
         self.btnLazer = QPushButton("LAZERİ ÇALIŞTIR")
@@ -91,9 +98,9 @@ class Ui_CelikkubbeUI(object):
         self.layoutSag.addWidget(self.btnKamera)
         self.layoutSag.addWidget(self.btnFan)
 
-        cizgi2 = QFrame();
-        cizgi2.setFrameShape(QFrame.HLine);
-        cizgi2.setStyleSheet("color: #805A00;")
+        cizgi2 = QFrame()
+        cizgi2.setFrameShape(QFrame.HLine)
+        cizgi2.setObjectName("ayiriciCizgi")  # QSS için
         self.layoutSag.addWidget(cizgi2)
 
         self.btnMod1 = QPushButton("MOD 1'E GEÇ (Aşama 1)")
@@ -123,7 +130,7 @@ class Ui_CelikkubbeUI(object):
         self.layoutSag.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
 
         self.btnAtes = QPushButton("HEDEFİ İMHA ET")
-        self.btnAtes.setObjectName("btnAtes")  # QSS tarafında bu isimle yakalayacağız
+        self.btnAtes.setObjectName("btnAtes")
         self.layoutSag.addWidget(self.btnAtes)
 
         self.btnSistemRestart = QPushButton("SİSTEMİ YENİDEN BAŞLAT")
