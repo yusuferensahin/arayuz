@@ -1,11 +1,8 @@
 """
-Çelikkubbe HMI — Aşama 2 & 3: Otonom Kontrol Paneli
+Çelikkubbe HMI — Aşama 2: Otonom Sürü Kontrol Paneli
 =====================================================
-Sol Panel : Yapay Zeka Tehdit Tablosu (QTableWidget, mock veri)
-Sağ Panel : Otonom Sistem Durum Göstergeleri (salt okunur)
-
-NOT: Bu aşamalarda manuel yönlendirme ve ateşleme butonları
-EKRANDAN TAMAMEN KALDIRILIR (Context-Aware / Decluttering).
+Sol Panel : Yapay Zeka Tehdit Tablosu ve Tur Bilgisi
+Sağ Panel : Otonom Sistem Durum Göstergeleri
 """
 
 from PySide6.QtWidgets import (
@@ -26,7 +23,6 @@ MOCK_THREATS = [
     {"id": 5, "tip": "Mini İHA",       "mesafe": "200m", "durum": "BELİRSİZ","oncelik": "DÜŞÜK"},
 ]
 
-# Öncelik renklerine göre renk haritası
 PRIORITY_COLORS = {
     "KRİTİK": "#FF3333",
     "YÜKSEK": "#FF8833",
@@ -41,11 +37,9 @@ STATUS_COLORS = {
 }
 
 
-class Stage23LeftPanel(QWidget):
+class Stage2LeftPanel(QWidget):
     """
-    Aşama 2/3 — Sol Panel
-    Yapay zekanın tespit ettiği hedefleri tehdit önceliğine göre
-    sıralayan dinamik tehdit tablosu.
+    Aşama 2 — Sol Panel
     """
 
     def __init__(self, parent=None):
@@ -59,7 +53,7 @@ class Stage23LeftPanel(QWidget):
         layout.setSpacing(8)
 
         # Başlık
-        title = QLabel("⎯ YZ TEHDİT TABLOSU ⎯")
+        title = QLabel("⎯ YZ TEHDİT TABLOSU (AŞAMA 2) ⎯")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet(
             "color: #FF3333; font-size: 14px; font-weight: bold; padding: 4px;"
@@ -99,40 +93,77 @@ class Stage23LeftPanel(QWidget):
         )
         layout.addWidget(self._summary_label)
 
-    def _populate_mock_data(self):
-        """Mock tehdit verilerini tabloya yükle."""
-        self._table.setRowCount(len(MOCK_THREATS))
+        # Tur Bilgisi Paneli
+        self._round_info_frame = QFrame()
+        self._round_info_frame.setStyleSheet(
+            "QFrame { background-color: #1A1A1A; border: 1px solid #3A3A3A; border-radius: 4px; }"
+        )
+        round_layout = QVBoxLayout(self._round_info_frame)
+        round_layout.setContentsMargins(8, 8, 8, 8)
+        round_layout.setSpacing(6)
 
+        round_title = QLabel("TUR BİLGİSİ")
+        round_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        round_title.setStyleSheet("color: #3399FF; font-size: 13px; font-weight: bold; border: none; border-bottom: 1px solid #3A3A3A; padding-bottom: 4px;")
+        round_layout.addWidget(round_title)
+
+        # 3 Tur için satırlar
+        self._round_labels = []
+        for i in range(1, 4):
+            row = QHBoxLayout()
+            lbl_tur = QLabel(f"{i}. Tur:")
+            lbl_tur.setStyleSheet("color: #A0A0A0; font-size: 13px; border: none;")
+            
+            lbl_hedef = QLabel("0 / 3 Vuruldu")
+            lbl_hedef.setAlignment(Qt.AlignmentFlag.AlignRight)
+            lbl_hedef.setStyleSheet("color: #FFCC00; font-size: 13px; font-weight: bold; border: none;")
+            
+            row.addWidget(lbl_tur)
+            row.addStretch()
+            row.addWidget(lbl_hedef)
+            round_layout.addLayout(row)
+            self._round_labels.append(lbl_hedef)
+
+        layout.addWidget(self._round_info_frame)
+
+    def update_round_info(self, round_idx: int, hit_count: int, total_count: int = 3):
+        """Tur bilgisindeki vurulan hedef sayısını günceller."""
+        if 0 <= round_idx < len(self._round_labels):
+            lbl = self._round_labels[round_idx]
+            lbl.setText(f"{hit_count} / {total_count} Vuruldu")
+            if hit_count == total_count:
+                lbl.setStyleSheet("color: #33CC33; font-size: 13px; font-weight: bold; border: none;")
+            elif hit_count > 0:
+                lbl.setStyleSheet("color: #FFCC00; font-size: 13px; font-weight: bold; border: none;")
+            else:
+                lbl.setStyleSheet("color: #FF3333; font-size: 13px; font-weight: bold; border: none;")
+
+    def _populate_mock_data(self):
+        self._table.setRowCount(len(MOCK_THREATS))
         for row, threat in enumerate(MOCK_THREATS):
-            # ID
             id_item = QTableWidgetItem(str(threat["id"]))
             id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self._table.setItem(row, 0, id_item)
 
-            # Tip
             tip_item = QTableWidgetItem(threat["tip"])
             self._table.setItem(row, 1, tip_item)
 
-            # Mesafe
             mesafe_item = QTableWidgetItem(threat["mesafe"])
             mesafe_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self._table.setItem(row, 2, mesafe_item)
 
-            # Durum (renkli)
             durum_item = QTableWidgetItem(threat["durum"])
             durum_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             durum_color = STATUS_COLORS.get(threat["durum"], "#E0E0E0")
             durum_item.setForeground(QColor(durum_color))
             self._table.setItem(row, 3, durum_item)
 
-            # Öncelik (renkli)
             oncelik_item = QTableWidgetItem(threat["oncelik"])
             oncelik_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             oncelik_color = PRIORITY_COLORS.get(threat["oncelik"], "#E0E0E0")
             oncelik_item.setForeground(QColor(oncelik_color))
             self._table.setItem(row, 4, oncelik_item)
 
-        # Satır yüksekliği
         for row in range(self._table.rowCount()):
             self._table.setRowHeight(row, 32)
 
@@ -142,10 +173,6 @@ class Stage23LeftPanel(QWidget):
         )
 
     def update_threats(self, threats: list[dict]):
-        """
-        Dış kaynaktan gelen tehdit listesini tabloda güncelle.
-        Her sözlük: {id, tip, mesafe, durum, oncelik}
-        """
         self._table.setRowCount(len(threats))
         for row, threat in enumerate(threats):
             self._table.setItem(row, 0, QTableWidgetItem(str(threat.get("id", ""))))
@@ -154,24 +181,18 @@ class Stage23LeftPanel(QWidget):
 
             durum_item = QTableWidgetItem(threat.get("durum", ""))
             durum_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            durum_item.setForeground(
-                QColor(STATUS_COLORS.get(threat.get("durum", ""), "#E0E0E0"))
-            )
+            durum_item.setForeground(QColor(STATUS_COLORS.get(threat.get("durum", ""), "#E0E0E0")))
             self._table.setItem(row, 3, durum_item)
 
             oncelik_item = QTableWidgetItem(threat.get("oncelik", ""))
             oncelik_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            oncelik_item.setForeground(
-                QColor(PRIORITY_COLORS.get(threat.get("oncelik", ""), "#E0E0E0"))
-            )
+            oncelik_item.setForeground(QColor(PRIORITY_COLORS.get(threat.get("oncelik", ""), "#E0E0E0")))
             self._table.setItem(row, 4, oncelik_item)
 
 
-class Stage23RightPanel(QWidget):
+class Stage2RightPanel(QWidget):
     """
-    Aşama 2/3 — Sağ Panel
-    Salt okunur otonom sistem durum göstergeleri.
-    Manuel kontrol yok — sadece büyük, net durum etiketleri.
+    Aşama 2 — Sağ Panel
     """
 
     def __init__(self, parent=None):
@@ -183,7 +204,6 @@ class Stage23RightPanel(QWidget):
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(12)
 
-        # Başlık
         title = QLabel("⎯ OTONOM SİSTEM DURUMU ⎯")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet(
@@ -191,7 +211,6 @@ class Stage23RightPanel(QWidget):
         )
         layout.addWidget(title)
 
-        # ── Durum göstergeleri ─────────────────────────────
         self._indicators: dict[str, QLabel] = {}
 
         indicators_data = [
@@ -231,7 +250,6 @@ class Stage23RightPanel(QWidget):
 
         layout.addStretch()
 
-        # Alt bilgi
         info_label = QLabel("Manuel kontrol bu modda devre dışıdır.")
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         info_label.setStyleSheet("color: #707070; font-size: 11px; padding: 4px;")
@@ -239,7 +257,6 @@ class Stage23RightPanel(QWidget):
         layout.addWidget(info_label)
 
     def set_indicator(self, key: str, text: str, color: str = None):
-        """Belirli bir göstergenin metnini ve isteğe bağlı rengini güncelle."""
         if key in self._indicators:
             self._indicators[key].setText(text)
             if color:

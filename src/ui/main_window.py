@@ -20,7 +20,8 @@ from PySide6.QtGui import QPixmap, QFont
 
 from core.video_worker import VideoWorker
 from ui.stage1_panel import Stage1LeftPanel, Stage1RightPanel
-from ui.stage2_3_panel import Stage23LeftPanel, Stage23RightPanel
+from ui.stage2_panel import Stage2LeftPanel, Stage2RightPanel
+from ui.stage3_panel import Stage3LeftPanel, Stage3RightPanel
 
 
 class MainWindow(QMainWindow):
@@ -161,10 +162,12 @@ class MainWindow(QMainWindow):
         self._left_stack.setFixedWidth(250)
 
         self._stage1_left = Stage1LeftPanel()
-        self._stage23_left = Stage23LeftPanel()
+        self._stage2_left = Stage2LeftPanel()
+        self._stage3_left = Stage3LeftPanel()
 
         self._left_stack.addWidget(self._stage1_left)   # index 0
-        self._left_stack.addWidget(self._stage23_left)   # index 1
+        self._left_stack.addWidget(self._stage2_left)   # index 1
+        self._left_stack.addWidget(self._stage3_left)   # index 2
 
         layout.addWidget(self._left_stack)
 
@@ -192,10 +195,12 @@ class MainWindow(QMainWindow):
         self._right_stack.setFixedWidth(280)
 
         self._stage1_right = Stage1RightPanel()
-        self._stage23_right = Stage23RightPanel()
+        self._stage2_right = Stage2RightPanel()
+        self._stage3_right = Stage3RightPanel()
 
         self._right_stack.addWidget(self._stage1_right)   # index 0
-        self._right_stack.addWidget(self._stage23_right)   # index 1
+        self._right_stack.addWidget(self._stage2_right)   # index 1
+        self._right_stack.addWidget(self._stage3_right)   # index 2
 
         layout.addWidget(self._right_stack)
 
@@ -266,8 +271,8 @@ class MainWindow(QMainWindow):
             self._log("AŞAMA DEĞİŞTİ → Aşama 2 (Otonom Sürü Modu)")
         elif index == 2:
             # Aşama 3 — Sınıflandırma
-            self._left_stack.setCurrentIndex(1)
-            self._right_stack.setCurrentIndex(1)
+            self._left_stack.setCurrentIndex(2)
+            self._right_stack.setCurrentIndex(2)
             self._stage_indicator.setText("AŞAMA 3 — SINIFLANDIRMA")
             self._stage_indicator.setStyleSheet(
                 "color: #FF3333; font-size: 20px; font-weight: bold; padding: 2px 10px;"

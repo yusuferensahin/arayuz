@@ -166,6 +166,12 @@ class _EngagementRow(QFrame):
                 "color: #556677; font-size: 14px; font-weight: bold;"
             )
 
+    def mousePressEvent(self, event):
+        if self._status in (TARGET_STATUS_ACTIVE, TARGET_STATUS_PENDING):
+            self._status = TARGET_STATUS_DESTROYED
+            self._apply_status_style()
+        super().mousePressEvent(event)
+
 
 class _InfoRow(QFrame):
 
@@ -377,17 +383,17 @@ class Stage1LeftPanel(QWidget):
                 self._queue_rows[i].clear()
 
     def _apply_mock_statuses(self):
+        distances = ["5m", "10m", "15m", "20m"]
         for i in range(len(self._target_order)):
             name = self._target_order[i]
             code = self.TARGET_CODES[self.TARGET_TYPES.index(name)]
-            if i < 2:
-                st = TARGET_STATUS_DESTROYED
-            elif i == 2:
-                st = TARGET_STATUS_ACTIVE
-            else:
-                st = TARGET_STATUS_PENDING
-            self._queue_rows[i].set_target(i + 1, name, code, st)
-        self._info_hit.set_value("2 / 4", C_SUSPECT)
+            # Distances are 5, 10, 15m. All are enemies. We just add distance to the name visually.
+            dist = distances[i] if i < len(distances) else "15m"
+            display_name = f"{name} ({dist})"
+            # Set the first one to ACTIVE, others to PENDING initially. User clicks to destroy.
+            st = TARGET_STATUS_ACTIVE if i == 0 else TARGET_STATUS_PENDING
+            self._queue_rows[i].set_target(i + 1, display_name, code, st)
+        self._info_hit.set_value("0 / 4", C_SUSPECT)
 
     def _on_reset(self):
         self._target_order = []
@@ -499,6 +505,44 @@ class Stage1RightPanel(QWidget):
             " font-size: 13px; font-weight: bold; padding: 6px;"
         )
         layout.addWidget(self._status_label)
+
+        # Harekete ve Atışa Yasaklı Alan Butonları
+        layout.addSpacing(10)
+        nfa_title = QLabel("YASAKLI ALAN TANIMLAMA")
+        nfa_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        nfa_title.setStyleSheet(
+            "color: #A0A0A0;"
+            " font-size: 13px; font-weight: bold;"
+            " padding: 4px; border-bottom: 1px solid #3A3A3A;"
+        )
+        layout.addWidget(nfa_title)
+
+        self._no_move_btn = QPushButton("HAREKETE YASAKLI ALAN")
+        self._no_move_btn.setStyleSheet(
+            "QPushButton {"
+            "  background-color: #2A1A1A; color: #FF6666;"
+            "  border: 1px solid #552222; border-radius: 4px;"
+            "  font-size: 13px; font-weight: bold; padding: 6px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #3A2222; border: 1px solid #FF3333;"
+            "}"
+        )
+        layout.addWidget(self._no_move_btn)
+
+        self._no_fire_btn = QPushButton("ATIŞA YASAKLI ALAN")
+        self._no_fire_btn.setStyleSheet(
+            "QPushButton {"
+            "  background-color: #2A1A1A; color: #FF6666;"
+            "  border: 1px solid #552222; border-radius: 4px;"
+            "  font-size: 13px; font-weight: bold; padding: 6px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #3A2222; border: 1px solid #FF3333;"
+            "}"
+        )
+        layout.addWidget(self._no_fire_btn)
+
         layout.addStretch()
 
     def _on_direction(self, d):
