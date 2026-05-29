@@ -8,9 +8,9 @@ Sağ Panel : Otonom Sistem Durum Göstergeleri
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QTableWidget, QTableWidgetItem, QHeaderView,
-    QFrame, QSizePolicy,
+    QFrame, QSizePolicy, QPushButton
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 
 
@@ -194,6 +194,7 @@ class Stage2RightPanel(QWidget):
     """
     Aşama 2 — Sağ Panel
     """
+    restricted_area_defined = Signal(str, int, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -256,6 +257,47 @@ class Stage2RightPanel(QWidget):
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
 
+        # Harekete ve Atışa Yasaklı Alan Butonları
+        layout.addSpacing(10)
+        nfa_title = QLabel("YASAKLI ALAN TANIMLAMA")
+        nfa_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        nfa_title.setStyleSheet(
+            "color: #A0A0A0;"
+            " font-size: 13px; font-weight: bold;"
+            " padding: 4px; border-bottom: 1px solid #3A3A3A;"
+        )
+        layout.addWidget(nfa_title)
+
+        self._no_move_btn = QPushButton("HAREKETE YASAKLI ALAN")
+        self._no_move_btn.setStyleSheet(
+            "QPushButton {"
+            "  background-color: #2A1A1A; color: #FF6666;"
+            "  border: 1px solid #552222; border-radius: 4px;"
+            "  font-size: 13px; font-weight: bold; padding: 6px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #3A2222; border: 1px solid #FF3333;"
+            "}"
+        )
+        self._no_move_btn.clicked.connect(self._on_no_move_clicked)
+        layout.addWidget(self._no_move_btn)
+
+        self._no_fire_btn = QPushButton("ATIŞA YASAKLI ALAN")
+        self._no_fire_btn.setStyleSheet(
+            "QPushButton {"
+            "  background-color: #2A1A1A; color: #FF6666;"
+            "  border: 1px solid #552222; border-radius: 4px;"
+            "  font-size: 13px; font-weight: bold; padding: 6px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #3A2222; border: 1px solid #FF3333;"
+            "}"
+        )
+        self._no_fire_btn.clicked.connect(self._on_no_fire_clicked)
+        layout.addWidget(self._no_fire_btn)
+
+        layout.addStretch()
+
     def set_indicator(self, key: str, text: str, color: str = None):
         if key in self._indicators:
             self._indicators[key].setText(text)
@@ -263,3 +305,17 @@ class Stage2RightPanel(QWidget):
                 self._indicators[key].setStyleSheet(
                     f"color: {color}; font-size: 16px; font-weight: bold;"
                 )
+
+    def _on_no_move_clicked(self):
+        from ui.restricted_area_dialog import RestrictedAreaDialog
+        dialog = RestrictedAreaDialog("HAREKETE YASAKLI ALAN TANIMLAMA", self)
+        if dialog.exec():
+            min_val, max_val = dialog.get_values()
+            self.restricted_area_defined.emit("HAREKETE", min_val, max_val)
+
+    def _on_no_fire_clicked(self):
+        from ui.restricted_area_dialog import RestrictedAreaDialog
+        dialog = RestrictedAreaDialog("ATIŞA YASAKLI ALAN TANIMLAMA", self)
+        if dialog.exec():
+            min_val, max_val = dialog.get_values()
+            self.restricted_area_defined.emit("ATIŞA", min_val, max_val)

@@ -30,6 +30,7 @@ ROW_H_ACTIVE = 64
 
 
 class _EngagementRow(QFrame):
+    row_clicked = Signal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -168,8 +169,7 @@ class _EngagementRow(QFrame):
 
     def mousePressEvent(self, event):
         if self._status in (TARGET_STATUS_ACTIVE, TARGET_STATUS_PENDING):
-            self._status = TARGET_STATUS_DESTROYED
-            self._apply_status_style()
+            self.row_clicked.emit(self)
         super().mousePressEvent(event)
 
 
@@ -266,6 +266,7 @@ class Stage1LeftPanel(QWidget):
         self._queue_rows = []
         for _ in range(self.MAX_TARGETS):
             row = _EngagementRow()
+            row.row_clicked.connect(self._on_row_clicked)
             layout.addWidget(row)
             self._queue_rows.append(row)
 
@@ -382,18 +383,36 @@ class Stage1LeftPanel(QWidget):
             else:
                 self._queue_rows[i].clear()
 
+    def _on_row_clicked(self, row):
+        if row._status in (TARGET_STATUS_ACTIVE, TARGET_STATUS_PENDING):
+            row._status = TARGET_STATUS_DESTROYED
+            row._apply_status_style()
+            
+            hit_count = 0
+            for r in self._queue_rows:
+                if r._status == TARGET_STATUS_DESTROYED:
+                    hit_count += 1
+            
+            for r in self._queue_rows:
+                if r._status == TARGET_STATUS_PENDING:
+                    r._status = TARGET_STATUS_ACTIVE
+                    r._apply_status_style()
+                    break
+                    
+            total = len(self._target_order)
+            if total > 0:
+                self._info_hit.set_value(f"{hit_count} / {total}", C_SUSPECT)
+
     def _apply_mock_statuses(self):
-        distances = ["5m", "10m", "15m", "20m"]
         for i in range(len(self._target_order)):
             name = self._target_order[i]
             code = self.TARGET_CODES[self.TARGET_TYPES.index(name)]
-            # Distances are 5, 10, 15m. All are enemies. We just add distance to the name visually.
-            dist = distances[i] if i < len(distances) else "15m"
-            display_name = f"{name} ({dist})"
+            display_name = f"{name}"
             # Set the first one to ACTIVE, others to PENDING initially. User clicks to destroy.
             st = TARGET_STATUS_ACTIVE if i == 0 else TARGET_STATUS_PENDING
             self._queue_rows[i].set_target(i + 1, display_name, code, st)
-        self._info_hit.set_value("0 / 4", C_SUSPECT)
+        total = len(self._target_order)
+        self._info_hit.set_value(f"0 / {total}", C_SUSPECT)
 
     def _on_reset(self):
         self._target_order = []
@@ -424,6 +443,7 @@ class Stage1RightPanel(QWidget):
 
     turret_command = Signal(str)
     fire_command = Signal()
+    restricted_area_defined = Signal(str, int, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -528,6 +548,7 @@ class Stage1RightPanel(QWidget):
             "  background-color: #3A2222; border: 1px solid #FF3333;"
             "}"
         )
+        self._no_move_btn.clicked.connect(self._on_no_move_clicked)
         layout.addWidget(self._no_move_btn)
 
         self._no_fire_btn = QPushButton("ATIŞA YASAKLI ALAN")
@@ -541,6 +562,7 @@ class Stage1RightPanel(QWidget):
             "  background-color: #3A2222; border: 1px solid #FF3333;"
             "}"
         )
+        self._no_fire_btn.clicked.connect(self._on_no_fire_clicked)
         layout.addWidget(self._no_fire_btn)
 
         layout.addStretch()
@@ -586,3 +608,17 @@ class Stage1RightPanel(QWidget):
             "color: " + C_HOSTILE + ";"
             " font-size: 13px; font-weight: bold; padding: 6px;"
         )
+
+    def _on_no_move_clicked(self):
+        from ui.restricted_area_dialog import RestrictedAreaDialog
+        dialog = RestrictedAreaDialog("HAREKETE YASAKLI ALAN TANIMLAMA", self)
+        if dialog.exec():
+            min_val, max_val = dialog.get_values()
+            self.restricted_area_defined.emit("HAREKETE", min_val, max_val)
+
+    def _on_no_fire_clicked(self):
+        from ui.restricted_area_dialog import RestrictedAreaDialog
+        dialog = RestrictedAreaDialog("ATIŞA YASAKLI ALAN TANIMLAMA", self)
+        if dialog.exec():
+            min_val, max_val = dialog.get_values()
+            self.restricted_area_defined.emit("ATIŞA", min_val, max_val)

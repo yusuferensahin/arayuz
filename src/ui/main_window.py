@@ -208,6 +208,9 @@ class MainWindow(QMainWindow):
         self._stage1_left.target_order_changed.connect(self._on_target_order_changed)
         self._stage1_right.turret_command.connect(self._on_turret_command)
         self._stage1_right.fire_command.connect(self._on_fire_command)
+        self._stage1_right.restricted_area_defined.connect(self._on_restricted_area_defined)
+        self._stage2_right.restricted_area_defined.connect(self._on_restricted_area_defined)
+        self._stage3_right.restricted_area_defined.connect(self._on_restricted_area_defined)
 
         return widget
 
@@ -325,6 +328,14 @@ class MainWindow(QMainWindow):
         self._log(
             "[ATES] KOMUTU VERILDI -- "
             f"Pan: {self._pan_angle:.1f} / Tilt: {self._tilt_angle:.1f}"
+        )
+
+    @Slot(str, int, int)
+    def _on_restricted_area_defined(self, area_type: str, min_val: int, max_val: int):
+        """Yasaklı alan tanımlandığında logla."""
+        self._log(
+            f"[{area_type} YASAKLI ALAN] TANIMLANDI -- "
+            f"Açı Aralığı: {min_val}° - {max_val}°"
         )
 
     @Slot()
