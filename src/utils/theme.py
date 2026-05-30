@@ -188,10 +188,10 @@ def get_global_stylesheet() -> str:
         color: {COLOR_TEXT_PRIMARY};
         border: 2px solid {COLOR_BORDER};
         border-radius: 6px;
-        font-size: 22px;
+        font-size: 18px;
         font-weight: bold;
-        min-width: 60px;
-        min-height: 50px;
+        min-width: 65px;
+        min-height: 45px;
     }}
     QPushButton#arrowBtn:hover {{
         background-color: #3A3A3A;
@@ -312,4 +312,79 @@ def get_global_stylesheet() -> str:
         border: 1px solid {COLOR_BORDER};
         border-radius: 4px;
     }}
+
+    /* ── E-STOP Butonu (Acil Durdurma) ─────────────────────── */
+    QPushButton#estopBtn {{
+        background-color: #3D0000;
+        color: {COLOR_ENEMY_RED};
+        border: 2px solid {COLOR_ENEMY_RED};
+        border-radius: 4px;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 4px 12px;
+        min-width: 90px;
+    }}
+    QPushButton#estopBtn:hover {{
+        background-color: #5D0000;
+    }}
+    QPushButton#estopBtn[active="true"] {{
+        background-color: {COLOR_ENEMY_RED};
+        color: #FFFFFF;
+        border: 2px solid #FFFFFF;
+    }}
+
+    /* ── Weapon Status Lock Butonu ─────────────────────────── */
+    QPushButton#weaponLockBtn {{
+        background-color: #2E1F1F;
+        color: {COLOR_ENEMY_RED};
+        border: 1px solid #5C2E2E;
+        border-radius: 3px;
+        font-size: {FONT_SIZE_NORMAL};
+        font-weight: bold;
+        padding: 5px;
+    }}
+    QPushButton#weaponLockBtn:hover {{
+        background-color: #3E2F2F;
+    }}
+    QPushButton#weaponLockBtn[locked="true"] {{
+        background-color: #1F2E1F;
+        color: {COLOR_SAFE_GREEN};
+        border: 1px solid #2E5C2E;
+    }}
+    QPushButton#weaponLockBtn[locked="true"]:hover {{
+        background-color: #2F3E2F;
+    }}
+    QPushButton#weaponLockBtn:disabled {{
+        background-color: #1E1E1E;
+        color: {COLOR_TEXT_DIM};
+        border: 1px solid #2A2A2A;
+    }}
+
+    /* ── Laser Toggle Butonu ───────────────────────────────── */
+    QPushButton#laserToggleBtn {{
+        background-color: #222222;
+        color: {COLOR_TEXT_DIM};
+        border: 1px solid #3A3A3A;
+        border-radius: 3px;
+        font-size: {FONT_SIZE_NORMAL};
+        font-weight: bold;
+        padding: 5px;
+    }}
+    QPushButton#laserToggleBtn:hover {{
+        background-color: #2A2A2A;
+    }}
+    QPushButton#laserToggleBtn[active="true"] {{
+        background-color: #1F2E1F;
+        color: {COLOR_SAFE_GREEN};
+        border: 1px solid #2E5C2E;
+    }}
+    QPushButton#laserToggleBtn[active="true"]:hover {{
+        background-color: #2F3E2F;
+    }}
+    QPushButton#laserToggleBtn:disabled {{
+        background-color: #1E1E1E;
+        color: {COLOR_TEXT_DIM};
+        border: 1px solid #2A2A2A;
+    }}
     """
+

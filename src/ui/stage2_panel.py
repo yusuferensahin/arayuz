@@ -6,12 +6,13 @@ Sağ Panel : Otonom Sistem Durum Göstergeleri
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout,
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QTableWidget, QTableWidgetItem, QHeaderView,
     QFrame, QSizePolicy, QPushButton
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
+from ui.common_controls import WeaponStatusWidget, AmmoCounterWidget, LaserToggleWidget
 
 
 # ── Mock tehdit verileri ──────────────────────────────────────────
@@ -74,16 +75,21 @@ class Stage2LeftPanel(QWidget):
         # Sütun genişlikleri
         header = self._table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(0, 40)
+        header.resizeSection(0, 30)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(2, 70)
+        header.resizeSection(2, 55)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(3, 80)
+        header.resizeSection(3, 70)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(4, 80)
+        header.resizeSection(4, 70)
+        self._table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
+        self._table.setMaximumHeight(200)
         layout.addWidget(self._table)
+
+        layout.addStretch()
 
         # Özet satırı
         self._summary_label = QLabel()
@@ -102,7 +108,7 @@ class Stage2LeftPanel(QWidget):
         round_layout.setContentsMargins(8, 8, 8, 8)
         round_layout.setSpacing(6)
 
-        round_title = QLabel("TUR BİLGİSİ")
+        round_title = QLabel("TUR VE DERİNLİK BİLGİSİ")
         round_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         round_title.setStyleSheet("color: #3399FF; font-size: 13px; font-weight: bold; border: none; border-bottom: 1px solid #3A3A3A; padding-bottom: 4px;")
         round_layout.addWidget(round_title)
@@ -124,7 +130,27 @@ class Stage2LeftPanel(QWidget):
             round_layout.addLayout(row)
             self._round_labels.append(lbl_hedef)
 
+        # Hedef Uzaklığı Bilgisi
+        depth_row = QHBoxLayout()
+        lbl_derinlik_title = QLabel("Hedef Uzaklığı:")
+        lbl_derinlik_title.setStyleSheet("color: #A0A0A0; font-size: 13px; border: none;")
+        
+        self._lbl_derinlik_val = QLabel("-- m")
+        self._lbl_derinlik_val.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self._lbl_derinlik_val.setStyleSheet("color: #33CC33; font-size: 14px; font-weight: bold; border: none;")
+        
+        depth_row.addWidget(lbl_derinlik_title)
+        depth_row.addStretch()
+        depth_row.addWidget(self._lbl_derinlik_val)
+        
+        round_layout.addSpacing(4)
+        round_layout.addLayout(depth_row)
+
         layout.addWidget(self._round_info_frame)
+
+    def update_depth_info(self, depth: str):
+        """Hedef uzaklığı bilgisini günceller."""
+        self._lbl_derinlik_val.setText(depth)
 
     def update_round_info(self, round_idx: int, hit_count: int, total_count: int = 3):
         """Tur bilgisindeki vurulan hedef sayısını günceller."""
@@ -189,12 +215,19 @@ class Stage2LeftPanel(QWidget):
             oncelik_item.setForeground(QColor(PRIORITY_COLORS.get(threat.get("oncelik", ""), "#E0E0E0")))
             self._table.setItem(row, 4, oncelik_item)
 
+        self._summary_label.setText(
+            f"Toplam Tespit: {len(threats)} | "
+            f"Aktif Tehdit: {sum(1 for t in threats if t.get('durum') == 'DÜŞMAN')}"
+        )
+
 
 class Stage2RightPanel(QWidget):
     """
     Aşama 2 — Sağ Panel
     """
     restricted_area_defined = Signal(str, int, int)
+    weapon_lock_changed = Signal(bool)
+    laser_toggled = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -202,13 +235,13 @@ class Stage2RightPanel(QWidget):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(12)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(5)
 
         title = QLabel("⎯ OTONOM SİSTEM DURUMU ⎯")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet(
-            "color: #3399FF; font-size: 14px; font-weight: bold; padding: 4px;"
+            "color: #3399FF; font-size: 13px; font-weight: bold; padding: 4px;"
         )
         layout.addWidget(title)
 
@@ -229,19 +262,18 @@ class Stage2RightPanel(QWidget):
                 f"""
                 QFrame#sidePanel {{
                     background-color: #1A1A1A;
-                    border: 2px solid {color};
-                    border-radius: 6px;
-                    padding: 8px;
+                    border: 1px solid {color};
+                    border-radius: 4px;
                 }}
                 """
             )
             indicator_layout = QVBoxLayout(indicator_frame)
-            indicator_layout.setContentsMargins(12, 12, 12, 12)
+            indicator_layout.setContentsMargins(4, 8, 4, 8)
 
             label = QLabel(text)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setStyleSheet(
-                f"color: {color}; font-size: 16px; font-weight: bold;"
+                f"color: {color}; font-size: 13px; font-weight: bold; border: none;"
             )
             label.setWordWrap(True)
             indicator_layout.addWidget(label)
@@ -249,16 +281,34 @@ class Stage2RightPanel(QWidget):
             layout.addWidget(indicator_frame)
             self._indicators[key] = label
 
-        layout.addStretch()
-
         info_label = QLabel("Manuel kontrol bu modda devre dışıdır.")
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         info_label.setStyleSheet("color: #707070; font-size: 11px; padding: 4px;")
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
 
+        # Ortak Kontroller
+        common_title = QLabel("SİSTEM KONTROLLERİ")
+        common_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        common_title.setStyleSheet(
+            "color: #A0A0A0;"
+            " font-size: 13px; font-weight: bold;"
+            " padding: 4px; border-bottom: 1px solid #3A3A3A;"
+        )
+        layout.addWidget(common_title)
+
+        self._weapon_status = WeaponStatusWidget()
+        self._weapon_status.weapon_lock_changed.connect(self.weapon_lock_changed)
+        layout.addWidget(self._weapon_status)
+
+        self._ammo_counter = AmmoCounterWidget()
+        layout.addWidget(self._ammo_counter)
+
+        self._laser_toggle = LaserToggleWidget()
+        self._laser_toggle.laser_toggled.connect(self.laser_toggled)
+        layout.addWidget(self._laser_toggle)
+
         # Harekete ve Atışa Yasaklı Alan Butonları
-        layout.addSpacing(10)
         nfa_title = QLabel("YASAKLI ALAN TANIMLAMA")
         nfa_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         nfa_title.setStyleSheet(
@@ -298,12 +348,37 @@ class Stage2RightPanel(QWidget):
 
         layout.addStretch()
 
+    def set_estop_active(self, active: bool):
+        self._weapon_status.setEnabled(not active)
+        self._laser_toggle.setEnabled(not active)
+        self._no_move_btn.setEnabled(not active)
+        self._no_fire_btn.setEnabled(not active)
+        if active:
+            self.set_indicator("system_mode", "ACİL DURDURMA: AKTİF", "#FF3333")
+            self.set_indicator("engagement", "ANGAJMAN: ENGELLENDİ", "#FF3333")
+        else:
+            self.set_indicator("system_mode", "SİSTEM OTONOM MODDA", "#33CC33")
+            self.set_indicator("engagement", "ANGAJMAN: OTOMATİK", "#FFCC00")
+
+    def set_weapon_locked(self, locked: bool):
+        self._weapon_status.set_locked_state(locked)
+        if locked:
+            self.set_indicator("engagement", "ANGAJMAN: KİLİTLİ", "#FFCC00")
+        else:
+            self.set_indicator("engagement", "ANGAJMAN: OTOMATİK", "#FFCC00")
+
+    def set_laser_active(self, active: bool):
+        self._laser_toggle.set_active_state(active)
+
+    def set_ammo(self, count: int):
+        self._ammo_counter.set_ammo(count)
+
     def set_indicator(self, key: str, text: str, color: str = None):
         if key in self._indicators:
             self._indicators[key].setText(text)
             if color:
                 self._indicators[key].setStyleSheet(
-                    f"color: {color}; font-size: 16px; font-weight: bold;"
+                    f"color: {color}; font-size: 13px; font-weight: bold; border: none;"
                 )
 
     def _on_no_move_clicked(self):

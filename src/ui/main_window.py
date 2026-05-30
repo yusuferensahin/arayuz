@@ -13,7 +13,7 @@ from datetime import datetime
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QComboBox, QTextEdit, QFrame, QStackedWidget,
-    QSplitter, QSizePolicy,
+    QSplitter, QSizePolicy, QPushButton, QScrollArea,
 )
 from PySide6.QtCore import Qt, Slot, QTimer
 from PySide6.QtGui import QPixmap, QFont
@@ -40,6 +40,11 @@ class MainWindow(QMainWindow):
         self._tilt_angle = 0.0
         self._ai_fps = 30
         self._camera_ok = True
+        self._e_stop_active = False
+        self._ammo = 100
+        self._weapon_locked = False
+        self._laser_active = False
+        self._target_distance = 150.0
 
         # Ana widget
         central_widget = QWidget()
@@ -78,6 +83,11 @@ class MainWindow(QMainWindow):
 
         # Aşama 1 ile başla
         self._on_stage_changed(0)
+        
+        # Ortak kontrollerin başlangıç durumlarını senkronize et
+        self._stage1_right.set_ammo(self._ammo)
+        self._stage2_right.set_ammo(self._ammo)
+        self._stage3_right.set_ammo(self._ammo)
 
     # ══════════════════════════════════════════════════════════
     #  HEADER
@@ -130,11 +140,11 @@ class MainWindow(QMainWindow):
 
         self._add_separator(layout)
 
-        self._estop_label = QLabel("E-STOP: OK")
-        self._estop_label.setStyleSheet(
-            "color: #33CC33; font-weight: bold; font-size: 13px;"
-        )
-        layout.addWidget(self._estop_label)
+        self._estop_btn = QPushButton("E-STOP: PASİF")
+        self._estop_btn.setObjectName("estopBtn")
+        self._estop_btn.setProperty("active", False)
+        self._estop_btn.clicked.connect(self._on_estop_toggled)
+        layout.addWidget(self._estop_btn)
 
         return frame
 
@@ -157,10 +167,8 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(4)
 
-        # ── Sol QStackedWidget ─────────────────────────
+        # ── Sol QStackedWidget (Scrollable) ────────────
         self._left_stack = QStackedWidget()
-        self._left_stack.setFixedWidth(250)
-
         self._stage1_left = Stage1LeftPanel()
         self._stage2_left = Stage2LeftPanel()
         self._stage3_left = Stage3LeftPanel()
@@ -169,7 +177,15 @@ class MainWindow(QMainWindow):
         self._left_stack.addWidget(self._stage2_left)   # index 1
         self._left_stack.addWidget(self._stage3_left)   # index 2
 
-        layout.addWidget(self._left_stack)
+        self._left_scroll = QScrollArea()
+        self._left_scroll.setWidgetResizable(True)
+        self._left_scroll.setWidget(self._left_stack)
+        self._left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._left_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self._left_scroll.setFixedWidth(450)
+        self._left_scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        layout.addWidget(self._left_scroll)
 
         # ── Merkez Video Alanı ─────────────────────────
         video_frame = QFrame()
@@ -190,10 +206,8 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(video_frame, stretch=1)
 
-        # ── Sağ QStackedWidget ─────────────────────────
+        # ── Sağ QStackedWidget (Scrollable) ────────────
         self._right_stack = QStackedWidget()
-        self._right_stack.setFixedWidth(280)
-
         self._stage1_right = Stage1RightPanel()
         self._stage2_right = Stage2RightPanel()
         self._stage3_right = Stage3RightPanel()
@@ -202,7 +216,15 @@ class MainWindow(QMainWindow):
         self._right_stack.addWidget(self._stage2_right)   # index 1
         self._right_stack.addWidget(self._stage3_right)   # index 2
 
-        layout.addWidget(self._right_stack)
+        self._right_scroll = QScrollArea()
+        self._right_scroll.setWidgetResizable(True)
+        self._right_scroll.setWidget(self._right_stack)
+        self._right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._right_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self._right_scroll.setFixedWidth(360)
+        self._right_scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        layout.addWidget(self._right_scroll)
 
         # ── Panel sinyallerini bağla ───────────────────
         self._stage1_left.target_order_changed.connect(self._on_target_order_changed)
@@ -211,6 +233,14 @@ class MainWindow(QMainWindow):
         self._stage1_right.restricted_area_defined.connect(self._on_restricted_area_defined)
         self._stage2_right.restricted_area_defined.connect(self._on_restricted_area_defined)
         self._stage3_right.restricted_area_defined.connect(self._on_restricted_area_defined)
+
+        # ── Ortak kontrollerin sinyallerini bağla ──────
+        self._stage1_right.weapon_lock_changed.connect(self._on_weapon_lock_changed)
+        self._stage1_right.laser_toggled.connect(self._on_laser_toggled)
+        self._stage2_right.weapon_lock_changed.connect(self._on_weapon_lock_changed)
+        self._stage2_right.laser_toggled.connect(self._on_laser_toggled)
+        self._stage3_right.weapon_lock_changed.connect(self._on_weapon_lock_changed)
+        self._stage3_right.laser_toggled.connect(self._on_laser_toggled)
 
         return widget
 
@@ -301,9 +331,53 @@ class MainWindow(QMainWindow):
         else:
             self._log("HEDEF SIRASI SIFIRLANDI")
 
+    @Slot()
+    def _on_estop_toggled(self):
+        """Acil durdurma butonunu tetikler ve tüm modları etkiler."""
+        self._e_stop_active = not self._e_stop_active
+        if self._e_stop_active:
+            self._estop_btn.setText("E-STOP: AKTİF")
+            self._estop_btn.setProperty("active", True)
+            self._log("[E-STOP] ACİL DURDURMA ETKİNLEŞTİRİLDİ! Sistem kilitlendi.")
+        else:
+            self._estop_btn.setText("E-STOP: PASİF")
+            self._estop_btn.setProperty("active", False)
+            self._log("[E-STOP] Acil durdurma kaldırıldı. Sistem devrede.")
+            
+        self._estop_btn.style().unpolish(self._estop_btn)
+        self._estop_btn.style().polish(self._estop_btn)
+
+        # Panelleri E-STOP durumu hakkında bilgilendir
+        self._stage1_right.set_estop_active(self._e_stop_active)
+        self._stage2_right.set_estop_active(self._e_stop_active)
+        self._stage3_right.set_estop_active(self._e_stop_active)
+
+    @Slot(bool)
+    def _on_weapon_lock_changed(self, locked: bool):
+        """Silah kilitleme durumunu tüm paneller arasında senkronize eder."""
+        self._weapon_locked = locked
+        self._stage1_right.set_weapon_locked(locked)
+        self._stage2_right.set_weapon_locked(locked)
+        self._stage3_right.set_weapon_locked(locked)
+        state_str = "KİLİTLİ" if locked else "HAZIR"
+        self._log(f"SİLAH KİLİT DURUMU GÜNCELLENDİ: {state_str}")
+
+    @Slot(bool)
+    def _on_laser_toggled(self, active: bool):
+        """Lazer durumunu tüm paneller arasında senkronize eder."""
+        self._laser_active = active
+        self._stage1_right.set_laser_active(active)
+        self._stage2_right.set_laser_active(active)
+        self._stage3_right.set_laser_active(active)
+        state_str = "AÇIK" if active else "KAPALI"
+        self._log(f"LAZER POINTER DURUMU GÜNCELLENDİ: {state_str}")
+
     @Slot(str)
     def _on_turret_command(self, direction: str):
         """Taret yönlendirme komutu geldiğinde açıyı güncelle ve logla."""
+        if self._e_stop_active:
+            self._log("ENGELLEME: E-STOP aktifken taret hareket ettirilemez!")
+            return
         step = 2.5
         if direction == "UP":
             self._tilt_angle = min(90.0, self._tilt_angle + step)
@@ -324,10 +398,25 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def _on_fire_command(self):
-        """Ateş komutu geldiğinde logla."""
+        """Ateş komutu geldiğinde logla ve mermiyi düşür."""
+        if self._e_stop_active:
+            self._log("ENGELLEME: E-STOP aktifken ateş edilemez!")
+            return
+        if self._weapon_locked:
+            self._log("ENGELLEME: Silah kilitliyken ateş edilemez!")
+            return
+        if self._ammo <= 0:
+            self._log("ENGELLEME: Mermi kalmadı!")
+            return
+
+        self._ammo = max(0, self._ammo - 1)
+        self._stage1_right.set_ammo(self._ammo)
+        self._stage2_right.set_ammo(self._ammo)
+        self._stage3_right.set_ammo(self._ammo)
+
         self._log(
             "[ATES] KOMUTU VERILDI -- "
-            f"Pan: {self._pan_angle:.1f} / Tilt: {self._tilt_angle:.1f}"
+            f"Pan: {self._pan_angle:.1f} / Tilt: {self._tilt_angle:.1f} | Kalan Mermi: {self._ammo}"
         )
 
     @Slot(str, int, int)
@@ -345,6 +434,15 @@ class MainWindow(QMainWindow):
             f"Pan: {self._pan_angle:.1f}° / Tilt: {self._tilt_angle:.1f}°"
         )
         self._ai_fps_label.setText(f"AI FPS: {self._ai_fps}")
+
+        # Hedef uzaklığı simülasyonu
+        self._target_distance -= 1.0
+        if self._target_distance < 10.0:
+            self._target_distance = 150.0
+        
+        dist_str = f"{self._target_distance:.1f} m"
+        self._stage2_left.update_depth_info(dist_str)
+        self._stage3_left.update_depth_info(dist_str)
 
     # ══════════════════════════════════════════════════════════
     #  YARDIMCI METOTLAR

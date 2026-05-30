@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QFont
+from ui.common_controls import WeaponStatusWidget, AmmoCounterWidget, LaserToggleWidget
 
 C_HOSTILE = "#FF3333"
 C_SUSPECT = "#FFCC00"
@@ -168,7 +169,7 @@ class _EngagementRow(QFrame):
             )
 
     def mousePressEvent(self, event):
-        if self._status in (TARGET_STATUS_ACTIVE, TARGET_STATUS_PENDING):
+        if self._status == TARGET_STATUS_ACTIVE:
             self.row_clicked.emit(self)
         super().mousePressEvent(event)
 
@@ -384,7 +385,7 @@ class Stage1LeftPanel(QWidget):
                 self._queue_rows[i].clear()
 
     def _on_row_clicked(self, row):
-        if row._status in (TARGET_STATUS_ACTIVE, TARGET_STATUS_PENDING):
+        if row._status == TARGET_STATUS_ACTIVE:
             row._status = TARGET_STATUS_DESTROYED
             row._apply_status_style()
             
@@ -444,6 +445,8 @@ class Stage1RightPanel(QWidget):
     turret_command = Signal(str)
     fire_command = Signal()
     restricted_area_defined = Signal(str, int, int)
+    weapon_lock_changed = Signal(bool)
+    laser_toggled = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -452,8 +455,8 @@ class Stage1RightPanel(QWidget):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(5)
 
         title = QLabel("TARET KONTROLU")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -466,7 +469,8 @@ class Stage1RightPanel(QWidget):
 
         arrow_frame = QFrame()
         al = QGridLayout(arrow_frame)
-        al.setSpacing(4)
+        al.setSpacing(6)
+        al.setContentsMargins(4, 4, 4, 4)
 
         btn_up = QPushButton("^")
         btn_up.setObjectName("arrowBtn")
@@ -495,8 +499,9 @@ class Stage1RightPanel(QWidget):
         btn_down.clicked.connect(lambda: self._on_direction("DOWN"))
         al.addWidget(btn_down, 2, 1)
 
+        self._arrow_buttons = [btn_up, btn_left, btn_right, btn_down]
+
         layout.addWidget(arrow_frame)
-        layout.addSpacing(12)
 
         fire_title = QLabel("ATESLEME SISTEMI")
         fire_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -526,8 +531,28 @@ class Stage1RightPanel(QWidget):
         )
         layout.addWidget(self._status_label)
 
+        # Ortak Kontroller
+        common_title = QLabel("SİSTEM KONTROLLERİ")
+        common_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        common_title.setStyleSheet(
+            "color: #A0A0A0;"
+            " font-size: 13px; font-weight: bold;"
+            " padding: 4px; border-bottom: 1px solid #3A3A3A;"
+        )
+        layout.addWidget(common_title)
+
+        self._weapon_status = WeaponStatusWidget()
+        self._weapon_status.weapon_lock_changed.connect(self.weapon_lock_changed)
+        layout.addWidget(self._weapon_status)
+
+        self._ammo_counter = AmmoCounterWidget()
+        layout.addWidget(self._ammo_counter)
+
+        self._laser_toggle = LaserToggleWidget()
+        self._laser_toggle.laser_toggled.connect(self.laser_toggled)
+        layout.addWidget(self._laser_toggle)
+
         # Harekete ve Atışa Yasaklı Alan Butonları
-        layout.addSpacing(10)
         nfa_title = QLabel("YASAKLI ALAN TANIMLAMA")
         nfa_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         nfa_title.setStyleSheet(
@@ -566,6 +591,61 @@ class Stage1RightPanel(QWidget):
         layout.addWidget(self._no_fire_btn)
 
         layout.addStretch()
+
+    def set_estop_active(self, active: bool):
+        self._arm_btn.setEnabled(not active)
+        for btn in self._arrow_buttons:
+            btn.setEnabled(not active)
+        if active:
+            self._is_armed = False
+            self._arm_btn.setText("ATIŞ İZNİ")
+            self._arm_btn.setProperty("armed", False)
+            self._arm_btn.style().unpolish(self._arm_btn)
+            self._arm_btn.style().polish(self._arm_btn)
+            self._fire_btn.setEnabled(False)
+            self._status_label.setText("DURUM: ACİL DURDURMA")
+            self._status_label.setStyleSheet(
+                "color: #FF3333; font-size: 13px; font-weight: bold; padding: 6px;"
+            )
+        else:
+            self._status_label.setText("DURUM: GUVENLI")
+            self._status_label.setStyleSheet(
+                "color: " + C_NEUTRAL + "; font-size: 13px; font-weight: bold; padding: 6px;"
+            )
+
+        self._weapon_status.setEnabled(not active)
+        self._laser_toggle.setEnabled(not active)
+        self._no_move_btn.setEnabled(not active)
+        self._no_fire_btn.setEnabled(not active)
+
+    def set_weapon_locked(self, locked: bool):
+        self._weapon_status.set_locked_state(locked)
+        if locked:
+            self._is_armed = False
+            self._arm_btn.setText("ATIŞ İZNİ")
+            self._arm_btn.setProperty("armed", False)
+            self._arm_btn.style().unpolish(self._arm_btn)
+            self._arm_btn.style().polish(self._arm_btn)
+            self._arm_btn.setEnabled(False)
+            self._fire_btn.setEnabled(False)
+            if self._status_label.text() != "DURUM: ACİL DURDURMA":
+                self._status_label.setText("DURUM: KİLİTLİ")
+                self._status_label.setStyleSheet(
+                    "color: #FFCC00; font-size: 13px; font-weight: bold; padding: 6px;"
+                )
+        else:
+            self._arm_btn.setEnabled(True)
+            if self._status_label.text() == "DURUM: KİLİTLİ":
+                self._status_label.setText("DURUM: GUVENLI")
+                self._status_label.setStyleSheet(
+                    "color: " + C_NEUTRAL + "; font-size: 13px; font-weight: bold; padding: 6px;"
+                )
+
+    def set_laser_active(self, active: bool):
+        self._laser_toggle.set_active_state(active)
+
+    def set_ammo(self, count: int):
+        self._ammo_counter.set_ammo(count)
 
     def _on_direction(self, d):
         self.turret_command.emit(d)
